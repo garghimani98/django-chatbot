@@ -1,0 +1,104 @@
+{% extends 'chatapp/base.html' %}
+
+<div class="shadow border rounded font-bold text-2xl">{{chatroom.name}}</div>
+
+<div class="message-container m-10 p-2 overflow-auto h-[700px]" id="message-container ">
+    <div id="chat-messages" >
+
+        {% for message in messages %}
+        <div class="message shadow p-3 rounded-lg w-1/2 bg-blue-100">
+            <div class="text-gray-700">
+                {{message.user.username}}
+            </div>
+        
+           
+               {{message.message_content}}
+           
+        
+            <div class="text-gray-700">
+                {{message.date}}
+             </div>
+        </div>
+        
+        {%  endfor %}
+    
+    </div>
+
+</div>
+
+
+<div class="form-container fixed inset-x-0 bottom-0 bg-blue-900 p-4">
+
+    <form action="" method="post">
+        {% csrf_token %}
+        <input type="text" id="message" name="message-input" placeholder="enter message" class="rounded-md px-2">
+        <button class="text-white ml-2" id="send-button" type="submit">Send</button>
+    </form>
+    
+
+</div>
+
+<!--Way to pass data to javascript-->
+
+{{chatroom.slug | json_script:"json-chatroomname"}}
+{{request.user.username | json_script:"json-username"}}
+
+
+
+<script>
+   const chatRoomName = JSON.parse(document.getElementById('json-chatroomname').textContent)
+   const username = JSON.parse(document.getElementById('json-username').textContent)
+   const chatSocket=new WebSocket(
+       'ws://'
+       +window.location.host
+       +'/ws/'
+       +chatRoomName
+       +'/'
+   )
+   chatSocket.onmessage=function(e){
+    //console.log('this is a message')
+    const data=JSON.parse(e.data)
+    if(data.message){
+        console.log('recieved message to client is ',data.message)
+        let html = '<div class=" message shadow p-3 rounded-lg w-1/2 bg-blue-100">'+
+                   '<div class="text-gray-700">'+
+                    +data.username  +'</div>'+ data.message+'<div class="text-gray-700">'+
+                        'Now'+'</div>'
+        //innerhtml returns the text of element along with all the tags , so we can insert html tags and spaces as well to inner html
+        document.getElementById('chat-messages').innerHTML+=html
+        scroll()
+    }
+    else{
+        alert("this message was empty")
+    }
+
+   }
+   chatSocket.onclose=function(e){
+    console.log('Socket closed')
+
+   }
+   document.getElementById('send-button').onclick=function(e){
+    e.preventDefault()
+    const messageInput=document.getElementById('message-input')
+    const message=messageInput.value
+
+    chatSocket.send(JSON.stringify({
+        'message':message,
+        'username':username,
+        'room':chatRoomName,
+    }))
+    messageInput.value=""
+   }
+
+   function scroll(){
+    const mcontainer=document.getElementById("message-container")
+    mcontainer.scrollTop=mcontainer.scrollHeight
+
+   }
+   scroll()
+
+</script>
+
+{% endblock %}
+
+
